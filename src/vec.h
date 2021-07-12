@@ -3,19 +3,24 @@
 #include <stddef.h>
 #include <stdint.h>
 
+typedef enum type_e : uint16_t {
+    U8, I8, U16, I16, U32, I32, U64, I64, F32, F64, BYTE_PTR
+} type_e;
+
 typedef struct vec_s {
     size_t len;
     size_t capacity;
-    size_t item_size;
+    uint8_t item_size;
+    type_e data_type;
     void* data;
 } vec_t;
 
 // Allocations
-vec_t* vec_new();
-vec_t* vec_with_capacity(size_t capacity);
-vec_t* vec_from_raw_parts(void* raw_ptr, size_t capacity, size_t item_size);
-void vec_copy_to(vec_t* self, vec_t* other);
-void vec_copy_from(vec_t* self, vec_t* other);
+vec_t* vec_new(type_e data_type);
+vec_t* vec_with_capacity(type_e data_type, size_t capacity);
+vec_t* vec_from_raw_parts(type_e data_type,void* raw_ptr, size_t capacity, size_t item_size);
+int vec_copy_to(vec_t* self, vec_t* other);
+int vec_copy_from(vec_t* self, vec_t* other);
 
 // Informations
 int vec_is_empty(vec_t* self);
@@ -24,12 +29,12 @@ void* vec_peak_back(vec_t* self);
 void* vec_peak_at(vec_t* self, size_t index);
 
 // Memory management
-void vec_resize(vec_t* self, size_t new_capacity);
+int vec_resize(vec_t* self, size_t new_capacity);
 
-void vec_reserve(vec_t* self, size_t amount);
+void vec_reserve_by(vec_t* self, size_t amount);
 void vec_reserve_to(vec_t* self, size_t new_capacity);
 
-void vec_shrink(vec_t* self, size_t amount);
+void vec_shrink_by(vec_t* self, size_t amount);
 void vec_shrink_to(vec_t* self, size_t new_capacity);
 void vec_shrink_to_fit(vec_t* self);
 
