@@ -1,5 +1,6 @@
 CC = gcc
 CFLAGS = -Wall -Wextra -g
 
-build:
-	$(CC) $(CFLAGS) src/* -o main
+test: 
+	$(CC) $(CFLAGS) src/vec.c test/test.c -o main
+	./main
