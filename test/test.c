@@ -38,10 +38,7 @@ int main() {
     vec_print(v1);
 
     printf("append\n");
-    vec_print(v2);
-    printf("v1.capacity = %lu, ", v1->capacity);
     vec_append(v1, v2);
-    printf("v1.capacity = %lu\n", v1->capacity);
     vec_print(v1);
     vec_print(v2);
 
@@ -49,6 +46,11 @@ int main() {
     vec_split_at(v1, v2, 3);
     vec_print(v1);
     vec_print(v2);
+
+    printf("change\n");
+    ((int*)v1->data)[2] = 3;
+    v1->len = 10;
+    vec_print(v1);
 
     vec_drop(v1);
     vec_drop(v2);
