@@ -3,11 +3,15 @@
 
 #include <stddef.h>
 #include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
 
 #define VEC_ERR 0
 #define VEC_OK  1
 
-// A contiguous growable array type, written as `vec_t` and pronounced 'vector'.
+// A fast, generic, contiguous growable array type. 
+// It's written as `vec_t` but pronounced 'vector'!
+//
 // In memory, it looks like this:
 //
 //      len     capacity  elem_size    data
@@ -66,7 +70,7 @@
 // onto the vector, which may force it to reallocate multiple times.
 //
 //
-// # Safety
+// # Safety and guarantees
 typedef struct vec_s {
     size_t len;
     size_t capacity;
@@ -74,36 +78,102 @@ typedef struct vec_s {
     void* data;
 } vec_t;
 
-// Implementations
+
+// # Implementation
+// Declarations, allocations, copies
 vec_t* vec_new(size_t elem_size);
 vec_t* vec_with_capacity(size_t capacity, size_t elem_size);
 vec_t* vec_from_raw_parts(void* raw_ptr, size_t len, size_t elem_size);
 int vec_copy(vec_t* self, vec_t* other);
-// TODO!
 int vec_inner_copy(vec_t* self, vec_t* other, size_t start, size_t end);
+void vec_drop(vec_t* self);
 
+// Lookup
+int vec_contains(vec_t* self, void* value);
 int vec_is_empty(vec_t* self);
 void* vec_peak(vec_t* self, size_t index);
 
+// Memory management
 int vec_resize(vec_t* self, size_t new_capacity);
 int vec_reserve(vec_t* self, size_t additional);
 int vec_shrink_to_fit(vec_t* self);
-// TODO!
 int vec_truncate(vec_t* self, size_t new_len);
 int vec_clear(vec_t* self);
 
-// TODO!
-int vec_mutate(vec_t* self, void* value, size_t index);
+// Mutating
 int vec_push(vec_t* self, void* elem);
 int vec_insert(vec_t* self, void* elem, size_t index);
 int vec_pop(vec_t* self, void* ret);
-int vec_remove(vec_t* self, size_t index);
-int vec_swap_remove(vec_t* self, size_t index);
+int vec_delete(vec_t* self, size_t index);
+int vec_remove(vec_t* self, void* ret, size_t index);
+int vec_swap_delete(vec_t* self, size_t index);
+int vec_swap_remove(vec_t* self, void* ret, size_t index);
 int vec_append(vec_t* self, vec_t* other);
 int vec_split_at(vec_t* self, vec_t* other, size_t index);
+int vec_swap(vec_t* self, size_t index1, size_t index2);
 
-void vec_print(vec_t* self);
+// # Future ideas
+// vec_cut()
+// vec_deref_slice_mut()
+// vec_iter()
+// vec_search()
+// vec_dedup()
+// vec_drain()
+// vec_retain()
+// vec_reverse()
+// vec_rotate_right/left()
+// vec_is_sorted()
+// vec_binary_search()
+// vec_sort()
 
-void vec_drop(vec_t* self);
+
+// # Macros
+
+// Mutates the element at the specified index, assigning it `value`.
+//
+// # Safety
+// - The caller must guarantee that the specified type corresponds to the 
+//   type of the specified value. Both the type and the value must be the 
+//   same size as the vector `elem_size`.
+//
+// # Failures
+// - Returns a `VEC_ERR` if `self` is not a valid pointer.
+// - Returns a `VEC_ERR` if the underlying data of the vector is not
+//   a valid pointer.
+//
+// # Panic
+// - Stops the program if the specified index is equal to or greater than
+//   the length of the vector.
+#define VEC_DEREF_MUT(vec, type, index, value)                                  \
+{                                                                               \
+    if (!vec || !vec->data) {                                                   \
+        return VEC_ERR;                                                         \
+    }                                                                           \
+                                                                                \
+    if (index >= vec->len || index < 0) {                                       \
+        printf("Error: index out of bounds, `len` is %lu but `index` is %u\n",  \
+            vec->len,                                                           \
+            index                                                               \
+        );                                                                      \
+        vec_drop(vec);                                                          \
+        exit(-1);                                                               \
+    }                                                                           \
+                                                                                \
+    ((type*)vec->data)[index] = value;                                          \
+}
+
+// Prints a vector to `stdout`.
+#define VEC_PRINT(vec, type)                                    \
+{                                                               \
+    if (!vec || !vec->data || vec_is_empty(vec)) {              \
+        printf("[ ]\n");                                        \
+    } else {                                                    \
+        printf("[");                                            \
+        for (size_t i = 0; i < vec->len - 1; i++) {             \
+            printf("%d, ", ((type*)vec->data)[i]);              \
+        }                                                       \
+        printf("%d]\n", ((type*)vec->data)[vec->len - 1]);      \
+    }                                                           \
+} 
 
 #endif
