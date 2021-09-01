@@ -127,7 +127,7 @@ vec_t* vec_from_raw_parts(void* raw_ptr, size_t len, size_t elem_size) {
 //
 // # Safety
 // - The caller must guarantee that the pointers to the underlying data
-//   DO NOT overlap. This is because `vec_copy()` used `memcpy()` internaly,
+//   DO NOT overlap. This is because `vec_copy()` used `memcpy()` internally,
 //   which requires `*restrict` pointers. See `vec_inner_copy()` if the 
 //   pointers happen to overlap.
 //
@@ -203,7 +203,13 @@ int vec_inner_copy(vec_t* self, vec_t* other, size_t start, size_t end) {
     return VEC_OK;
 }
 
-// TODO!
+// Returns 1 (true) if the vector contains the specified value,
+// 0 (false) otherwise.
+//
+// # Failures
+// - Returns a `VEC_ERR` if `self` is not a valid pointer.
+// - Returns a `VEC_ERR` if the underlying data of the vector is not 
+//   a valid pointer.
 inline
 int vec_contains(vec_t* self, void* value) {
     if (!self || !self->data) {
@@ -211,11 +217,38 @@ int vec_contains(vec_t* self, void* value) {
     }
 
     int contains = 1;
+    
+    // Optimized to stop iterating when a match is found
     for (size_t i = 0; i < self->len && contains != 0; i++) {
-        contains = memcmp(self->data + (i * self->elem_size), value, self->elem_size);
+        contains = memcmp(vec_offset(self, i), value, self->elem_size);
     }
 
     return contains == 0;
+}
+
+// Returns the index where the specified value was found,
+// -1 otherwise.
+//
+// # Failures
+// - Returns a `VEC_ERR` if `self` is not a valid pointer.
+// - Returns a `VEC_ERR` if the underlying data of the vector is not 
+//   a valid pointer.
+inline
+int vec_search(vec_t* self, void* value) {
+    if (!self || !self->data) {
+        return VEC_ERR;
+    }
+
+    int contains = 1;
+    size_t i = 0;
+
+    // Optimized to stop iterating when a match is found
+    while (i < self->len && contains != 0) {
+        contains = memcmp(vec_offset(self, i), value, self->elem_size);
+        i += 1;
+    }
+
+    return contains == 0 ? (int)i - 1 : -1;
 }
 
 // Returns 1 (true) if the vector is empty, 0 (false) otherwise.
@@ -234,8 +267,8 @@ int vec_is_empty(vec_t* self) {
 // Returns a pointer to the underlying data at the specified index.
 //
 // # Safety
-// - It is NOT recommended to use the result of `vec_peak()` for tasks other
-//   than "read-only" purposes.
+// - The user should use the result of `vec_peak()` for read-only
+//   purposes.
 //
 // # Failure
 // - Returns `NULL` if the pointer to the underlying data is not valid.
@@ -419,7 +452,7 @@ int vec_push(vec_t* self, void* elem) {
     }
 
     if (self->len == self->capacity) {
-        int ret = vec_reserve(self, 1);
+        int ret = vec_reserve(self, VEC_GROWTH_FACTOR);
 
         if (!ret) {
             return VEC_ERR;
@@ -465,7 +498,7 @@ int vec_insert(vec_t* self, void* elem, size_t index) {
     }
 
     if (self->len == self->capacity) {
-        int ret = vec_reserve(self, 1);
+        int ret = vec_reserve(self, VEC_GROWTH_FACTOR);
 
         if (!ret) {
             return VEC_ERR;
@@ -666,7 +699,7 @@ int vec_swap_remove(vec_t* self, void* ret, size_t index) {
 //
 // # Safety
 // - The caller must guarantee that the pointers to the underlying data
-//   DO NOT overlap. This is because `vec_append()` uses `memcpy()` internaly,
+//   DO NOT overlap. This is because `vec_append()` uses `memcpy()` internally,
 //   which requires `*restrict` pointers.
 //
 // # Failures
@@ -708,6 +741,7 @@ int vec_append(vec_t* self, vec_t* other) {
 // Splits the vector `self` at the specified index and copies the rest into `other`.
 // `self` will contain all the elements up to `index` (excluded): `[0..index)`.
 // `other` will contain all the remaining elements of `self`: `[index..len)`.
+// Returns a `VEC_OK` if the function executed correctly.
 //
 // # Safety
 // TODO! 
@@ -715,13 +749,14 @@ int vec_append(vec_t* self, vec_t* other) {
 // Make sure that the vec_t have the same type
 //
 // # Failure
-// - 
-// -
-// -
-// -
+// - Returns a `VEC_ERR` if `self` or `other` are not valid pointers.
+// _ Returns a `VEC_ERR` if the underlying data of `self` is not a valid pointer.
+// - Returns a `VEC_ERR` if the allocation or reallocation of the underlying array 
+//   of `other` failed.
 //
 // # Panic
-// -
+// - Stops the program if the specified index is equal to or greater than
+//   the length of `self`.
 inline
 int vec_split_at(vec_t* self, vec_t* other, size_t index) {
     if (index >= self->len) {
@@ -761,6 +796,19 @@ int vec_split_at(vec_t* self, vec_t* other, size_t index) {
     return VEC_OK;
 }
 
+// Swaps the value at the specified `index1` with the one at `index2`.
+// This function makes an allocation of size `self->elem_size`.
+// Returns a `VEC_OK` if the function executed correctly.
+//
+// # Failures
+// - Returns a `VEC_ERR` if `self` is not a valid pointer.
+// - Returns a `VEC_ERR` if the underlying data of the vector is not
+//   a valid pointer.
+//
+// # Panic
+// - Stops the program if the specified index is equal to or greater than
+//   the length of the vector.
+inline
 int vec_swap(vec_t* self, size_t index1, size_t index2) {
     if (index1 >= self->len || index2 >= self->len) {
         printf("Error: index out of bounds, `len` is %lu but `indexes` are %lu and %lu\n", 
@@ -785,6 +833,33 @@ int vec_swap(vec_t* self, size_t index1, size_t index2) {
     memcpy(ptr2, tmp, self->elem_size);
 
     free(tmp);
+
+    return VEC_OK;
+}
+
+// Reverses the order of the elements in the vector, in place.
+// Internally, this function uses the `vec_swap()` function
+// implemented above.
+// Returns a `VEC_OK` if the function executed correctly.
+//
+// # Failures
+// - Returns a `VEC_ERR` if `self` is not a valid pointer.
+// - Returns a `VEC_ERR` if the underlying data of the vector is not
+//   a valid pointer.
+// - Returns a `VEC_ERR` if `vec_swap()` failed.
+int vec_reverse(vec_t* self) {
+    if (!self || !self->data) {
+        return VEC_ERR;
+    }
+
+    int ret;
+    for (size_t i = 0; i < self->len / 2; i++) {
+        ret = vec_swap(self, i, self->len - i - 1);
+
+        if (!ret) {
+            return VEC_ERR;
+        }
+    }
 
     return VEC_OK;
 }
