@@ -1,25 +1,32 @@
 CC = gcc
 CFLAGS = -Wall -Wextra -g
-BUILD = target/build
-TESTS = target/test
+OFLAGS = -O3
+SRC = src
+LIB = target/build
+TEST = test/test.c
 
-$(BUILD)/vec.o: $(BUILD) src/vec.c
-	@echo "  Compiling vec v0.1.0"
-	@$(CC) $(CFLAGS) -c src/vec.c -o $@
+libvec.so: $(SRC)/vec.c $(SRC)/vec.h
+	@echo -e "\e[32m  Compiling\e[0m libvec v0.1.0"
+	@$(CC) $(CFLAGS) $(OFLAGS) -fPIC -shared -o $@ src/vec.c -lc
 
-$(TESTS)/test: $(TESTS) $(BUILD)/vec.o
-	@$(CC) $(CFLAGS) $(BUILD)/vec.o test/test.c -o target/test/main
-	@echo "   Finished debug (unoptimized + debugflags)"
+libvec.o: $(SRC)/vec.c $(SRC)/vec.h
+	@mkdir -p $(LIB)
+	@echo -e "\e[32m  Compiling\e[0m vec v0.1.0"
+	@$(CC) $(CFLAGS) -c $(SRC)/vec.c -o $(LIB)/$@
 
-test: $(TESTS)/test
-	@echo "    Running target/test/main"
+test: libvec.o
+	@mkdir -p target/test
+	@$(CC) $(CFLAGS) $(LIB)/libvec.o $(TEST) -o target/test/main
+	@echo -e "   \e[32mFinished\e[0m debug (unoptimized + debugflags)"
+	@echo -e "    \e[32mRunning\e[0m target/test/main"
 	@target/test/main
 
-$(BUILD):
-	@mkdir -p $(BUILD)
-	
-$(TESTS):
+test_release:
 	@mkdir -p target/test
+	@$(CC) $(CFLAGS) $(TEST) $^ -o target/test/main -L. -lvec
+	@echo -e "   \e[32mFinished\e[0m release (optimized + debugflags)"
+	@echo -e "    \e[32mRunning\e[0m target/test/main"
+	@target/test/main
 
 clean:
-	@rm -Rf target/
+	@rm -Rf target/ *.so
