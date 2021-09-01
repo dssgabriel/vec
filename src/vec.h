@@ -6,11 +6,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#define VEC_ERR 0
-#define VEC_OK  1
-
 // A fast, generic, contiguous growable array type. 
-// It's written as `vec_t` but pronounced 'vector'!
 //
 // In memory, it looks like this:
 //
@@ -33,8 +29,7 @@
 // One must be careful when mutating the vector like this, as indexing outside
 // of the allocated memory is undefined behavior (UB). Always cast the 
 // underlying data to the type you have declared it with.
-// The library provides the "safer" `vec_mutate()` function for this
-// operation.
+// The library provides the "safer" `VEC_MUT()` macro for this operation.
 //
 // An example: ```c
 // // Declare a new `vec_t` of size 2, storing integers
@@ -42,9 +37,9 @@
 // 
 // // Set the value of the first element to 42
 // ((int*)v->data)[0] = 42;
-// // Same thing with `vec_mutate()`
+// // Same thing with `VEC_MUT()`
 // int x = 42;
-// vec_mutate(v, &x, 0);
+// VEC_MUT(v, int, 0, x);
 // ```
 //
 //
@@ -66,11 +61,62 @@
 //
 // Reallocating memory can be slow, especially on large vectors. For this reason,
 // it is recommended to use `vec_with_capacity()` whenever possible.
-// One can also use `vec_resize()` or `vec_reserve()` when pushing many values
+// One can also use `vec_resize()` or `vec_reserve()` before pushing many values
 // onto the vector, which may force it to reallocate multiple times.
 //
 //
-// # Safety and guarantees
+// # Safety
+// The C language type system being weak and not enforcing any special rules
+// for type conversion, the users of this library shall be especially careful
+// with how they use the `vec_t` type.
+// 
+// As its goal is to provide a way to store elements generically, it 
+// internally uses `void*` (which do not hold any information about the type 
+// being stored, but only where it points at in memory).
+// The use of void pointers is generally dicouraged and considered bad practice
+// as it often leads to many memory problems and UB.
+//
+// Therefore, the user must abide to these (non-exhaustive) rules:
+// - Never manually change the fields of the vector.
+// - Always use the vector with the type it was declared with. 
+// - Verify that the functions return valid pointers, values or the VEC_OK macro.
+// 
+// Not following these rules WILL break your code and/or make you go insane
+// while trying to track down the bugs! (Aslo, feel free to suggest/add rules in
+// the list above).
+//
+//
+// # Guarantees
+// The `vec_t` type defined here is quite fundamental in nature as it only consists
+// in a (length, capacity, element size, pointer) quadruplet. These are not
+// necessarily stored together and their order is not specified. As mentioned in 
+// the usage rules defined the Safety section above, use the appropriate functions
+// to modidy these.
+// By design, `vec_t` is as low-overhead as the C language permits it, while trying
+// to keep it as safe to use as possible.
+//
+// If a `vec_t` has allocated memory, then the memory it points to is on the heap.
+// Its pointer points to `len` initialized, contiguous elements in order, followed 
+// by `capacity - len` logically uninitialized, contiguous elements (see diagram 
+// above for a better visualization).
+//
+// The `vec_t` type will never automatically shrink itself, even if completely empty.
+// This ensures no unnecessary allocations or deallocations occur. Emptying a vector
+// and then filling it back up to the same len should not incur calls to allocator
+// functions. If you wish to free up unused memory, use `vec_shrink_to_fit()`.
+//
+// The library's functions `vec_push()` and `vec_insert()` will never (re)allocate
+// if the vector's capacity is sufficient. These will only (re)allocate if 
+// `len == capacity`. The vector's capacity is completely accurate, and can be 
+// relied on, provided that the user never manually modifies the vector's 
+// `capacity` field.
+// 
+// The `vec_t` type does not guarantee any particular growth strategy when 
+// reallocating, nor when `vec_reserve()` is called. The current strategy is 
+// basically to only allocate space for one more element.
+// One can modify the `VEC_GROWTH_FACTOR` macro down in the Macro section if it
+// wishes to optimize reallocations.
+// Whatever strategy is used will of course guarantee O(1) amortized push.
 typedef struct vec_s {
     size_t len;
     size_t capacity;
@@ -80,7 +126,7 @@ typedef struct vec_s {
 
 
 // # Implementation
-// Declarations, allocations, copies
+// Declarations, (de)allocations, copies
 vec_t* vec_new(size_t elem_size);
 vec_t* vec_with_capacity(size_t capacity, size_t elem_size);
 vec_t* vec_from_raw_parts(void* raw_ptr, size_t len, size_t elem_size);
@@ -90,6 +136,7 @@ void vec_drop(vec_t* self);
 
 // Lookup
 int vec_contains(vec_t* self, void* value);
+int vec_search(vec_t* self, void* value);
 int vec_is_empty(vec_t* self);
 void* vec_peak(vec_t* self, size_t index);
 
@@ -100,7 +147,7 @@ int vec_shrink_to_fit(vec_t* self);
 int vec_truncate(vec_t* self, size_t new_len);
 int vec_clear(vec_t* self);
 
-// Mutating
+// Mutation
 int vec_push(vec_t* self, void* elem);
 int vec_insert(vec_t* self, void* elem, size_t index);
 int vec_pop(vec_t* self, void* ret);
@@ -111,23 +158,22 @@ int vec_swap_remove(vec_t* self, void* ret, size_t index);
 int vec_append(vec_t* self, vec_t* other);
 int vec_split_at(vec_t* self, vec_t* other, size_t index);
 int vec_swap(vec_t* self, size_t index1, size_t index2);
+int vec_reverse(vec_t* self);
 
 // # Future ideas
-// vec_cut()
-// vec_deref_slice_mut()
-// vec_iter()
-// vec_search()
-// vec_dedup()
-// vec_drain()
-// vec_retain()
-// vec_reverse()
-// vec_rotate_right/left()
-// vec_is_sorted()
-// vec_binary_search()
-// vec_sort()
+// vec_iter() -- Macro to iterate over a vector?
+// vec_dedup() -- Remove duplicated items in the vector
+// vec_retain() -- Only keep the elements that match the specified argument
+// vec_rotate_right/left() -- Shift values right/left and rotate
+// vec_is_sorted() -- Check if the elements are sorted
+// vec_binary_search() -- Binary search on a sorted vector
+// vec_sort() -- Find a good generic sort?
 
 
 // # Macros
+#define VEC_ERR 0
+#define VEC_OK  1
+#define VEC_GROWTH_FACTOR 1
 
 // Mutates the element at the specified index, assigning it `value`.
 //
@@ -144,7 +190,7 @@ int vec_swap(vec_t* self, size_t index1, size_t index2);
 // # Panic
 // - Stops the program if the specified index is equal to or greater than
 //   the length of the vector.
-#define VEC_DEREF_MUT(vec, type, index, value)                                  \
+#define VEC_MUT(vec, type, index, value)                                        \
 {                                                                               \
     if (!vec || !vec->data) {                                                   \
         return VEC_ERR;                                                         \
