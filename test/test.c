@@ -3,10 +3,13 @@
 #include "../src/vec.h"
 
 int main() {
+    int a = 0, b = 1, c = 2, d = 3, e = 4, r;
     vec_t* v1 = vec_new(sizeof(int));
     vec_t* v2 = vec_with_capacity(2, sizeof(int));
+    vec_t* v3 = vec_with_value(&d, 5, sizeof(int));
 
-    int a = 0, b = 1, c = 2, d = 3, e = 4, r;
+    printf(":: Initialize with value (3) ::\nv3 = ");
+    VEC_PRINT(v3, int);
 
     printf(":: Push/insert (0, 1, 2 & 3) ::\nBefore: v1 = ");
     VEC_PRINT(v1, int);
@@ -98,7 +101,8 @@ int main() {
     printf("After:  v2 = ");
     VEC_PRINT(v2, int);
 
-    vec_drop(v1);
-    vec_drop(v2);
+    vec_drop(v3);
+    vec_drop_all(2, v1, v2);
+    
     return 0;
 }
