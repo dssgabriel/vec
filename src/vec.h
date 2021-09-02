@@ -129,10 +129,12 @@ typedef struct vec_s {
 // Declarations, (de)allocations, copies
 vec_t* vec_new(size_t elem_size);
 vec_t* vec_with_capacity(size_t capacity, size_t elem_size);
+vec_t* vec_with_value(void* value, size_t len, size_t elem_size);
 vec_t* vec_from_raw_parts(void* raw_ptr, size_t len, size_t elem_size);
 int vec_copy(vec_t* self, vec_t* other);
 int vec_inner_copy(vec_t* self, vec_t* other, size_t start, size_t end);
 void vec_drop(vec_t* self);
+void vec_drop_all(size_t to_drop, ...);
 
 // Lookup
 int vec_contains(vec_t* self, void* value);
