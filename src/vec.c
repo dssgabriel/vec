@@ -1,3 +1,4 @@
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -19,6 +20,24 @@ inline
 void vec_drop(vec_t* self) {
     free(self->data);
     free(self);
+}
+
+// Deallocates the memory for the specified numbers of vectors to drop.
+// The user must specify the number of vectors to drop, then the vectors
+// themselves.
+inline
+void vec_drop_all(size_t to_drop, ...) {
+    va_list args;
+    va_start(args, to_drop);
+
+    for (size_t i = 0; i < to_drop; i++) {
+        vec_t* self = va_arg(args, vec_t*);
+
+        free(self->data);
+        free(self);
+    }
+
+    va_end(args);
 }
 
 // Creates a new, empty `vec_t`.
@@ -80,6 +99,43 @@ vec_t* vec_with_capacity(size_t capacity, size_t elem_size) {
     v->capacity = capacity;
     v->elem_size = elem_size;
     v->data = malloc(capacity * elem_size);
+
+    if (!v->data) {
+        return NULL;
+    }
+
+    return v;
+}
+
+// TODO!
+vec_t* vec_with_value(void* value, size_t len, size_t elem_size) {
+    if (elem_size == 0) {
+        printf("Error: element size of a `vec_t` cannot be 0\n");
+        exit(-1);
+    }
+
+    if (len == 0) {
+        return vec_new(elem_size);
+    }
+
+    vec_t* v = malloc(sizeof(vec_t));
+
+    if (!v) {
+        return NULL;
+    }
+
+    v->len = len;
+    v->capacity = len;
+    v->elem_size = elem_size;
+    v->data = malloc(len * elem_size);
+
+    if (!v->data) {
+        return NULL;
+    }
+
+    for (size_t i = 0; i < v->len; i++) {
+        memcpy(vec_offset(v, i), value, elem_size);
+    }
 
     if (!v->data) {
         return NULL;
