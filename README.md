@@ -23,10 +23,9 @@ Basically, it looks like this:
 To install the library on your computer, please use the provided Makefile:
 ```sh
 make
+sudo make install
 ```
 
-You can then either add the resulting `libvec.so` file to your
-`$LD_LIBRARY_PATH` or copy/symlink it to `/usr/`, `/usr/lib/` or `/usr/local/lib/`.
 When using the library in your own programs, you will only need to include
 the `vec.h` file and compile with the `-lvec` option.
 
