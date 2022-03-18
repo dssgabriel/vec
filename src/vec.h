@@ -134,13 +134,13 @@ vec_t* vec_from_raw_parts(void* raw_ptr, size_t len, size_t elem_size);
 int vec_copy(vec_t* self, vec_t* other);
 int vec_inner_copy(vec_t* self, vec_t* other, size_t start, size_t end);
 void vec_drop(vec_t* self);
-void vec_drop_all(size_t to_drop, ...);
+void vec_drop_many(size_t to_drop, ...);
 
 // Lookup
 int vec_contains(vec_t* self, void* value);
 int vec_search(vec_t* self, void* value);
 int vec_is_empty(vec_t* self);
-void* vec_peak(vec_t* self, size_t index);
+void* vec_peek(vec_t* self, size_t index);
 
 // Memory management
 int vec_resize(vec_t* self, size_t new_capacity);
@@ -175,7 +175,7 @@ int vec_reverse(vec_t* self);
 // # Macros
 #define VEC_ERR 0
 #define VEC_OK  1
-#define VEC_GROWTH_FACTOR 1
+#define VEC_GROWTH_FACTOR 2
 
 // Mutates the element at the specified index, assigning it `value`.
 //
