@@ -26,7 +26,7 @@ void vec_drop(vec_t* self) {
 // The user must specify the number of vectors to drop, then the vectors
 // themselves.
 inline
-void vec_drop_all(size_t to_drop, ...) {
+void vec_drop_many(size_t to_drop, ...) {
     va_list args;
     va_start(args, to_drop);
 
@@ -323,7 +323,7 @@ int vec_is_empty(vec_t* self) {
 // Returns a pointer to the underlying data at the specified index.
 //
 // # Safety
-// - The user should use the result of `vec_peak()` for read-only
+// - The user should use the result of `vec_peek()` for read-only
 //   purposes.
 //
 // # Failure
@@ -333,7 +333,7 @@ int vec_is_empty(vec_t* self) {
 // - Stops the program if the specified index is equal to or greater than
 //   the length of the vector.
 inline
-void* vec_peak(vec_t* self, size_t index) {
+void* vec_peek(vec_t* self, size_t index) {
     if (index >= self->len) {
         printf("Error: index out of bounds, `len` is %lu but `index` is %lu\n", 
             self->len, 
